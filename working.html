@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <title>u n r e l i a b l e</title>
+  <meta charset="utf-8">
+  <style>
+    @font-face {
+      font-family: 'tty';
+      src: url('glass_tty_vt220.ttf');
+    }
+    body {
+      background-color: #08130b;
+      border: 0;
+      padding: 0
+    }
+    #container {
+      position: relative;
+    }
+    #canvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    #overlay {
+      position: absolute;
+      left: 15px;
+      top: 15px;
+      z-index: 99;
+      font-family: tty;
+      color: papayaWhip;
+      font-size: 1.3em;
+    }
+    video {} canvas {}
+  </style>
+  <script src="lib/jquery-2.1.1.min.js"></script>
+  <script src="lib/popcorn.min.js"></script>
+  <script src="lib/clmtrackr/js/utils.js"></script>
+  <script src="lib/clmtrackr/js/clmtrackr.js"></script>
+  <script src="lib/clmtrackr/models/model_pca_20_svm.js"></script>
+  <script src="lib/context-blender/context_blender.js"></script>
+
+  <script>
+    var startTime, mode, pop, loop = 0,
+      frame = {};
+
+    $('document').ready(function () {
+      var modes = [ "frame", "face" ];
+      var idx = Math.floor(Math.random() * modes.length) + 0;
+      console.log(idx);
+      mode = modes[idx];
+    
+      $.getJSON("data/index.json", function (streams) {
+        var vid = streams.clips[Math.floor(Math.random() * streams.clips.length)];
+        loadVid(vid);
+      });
+      pop = Popcorn('video');
+      var vid = $('video');
+      pop.on('loadeddata', function () {
+        var goTime = rand(Popcorn.util.toSeconds(startTime), pop.duration());
+          console.log(goTime);
+        console.log(mode);
+        if (mode == "frame") {
+          vid.hide();
+          var c1 = $("<canvas/>", {
+            "id": "c1"
+          }).appendTo("#container").hide();
+          var c2 = $("<canvas/>", {
+            "id": "c2"
+          }).appendTo("#container").css('height', '99vh');
+          c1[0].width = vid.innerWidth();
+          c2[0].width = vid.innerWidth();
+          c1[0].height = vid.innerHeight();
+          c2[0].height = vid.innerHeight();
+          frame.setup();
+          pop.pause(goTime);
+          frame.boop();
+
+        } else if (mode == "face") {
+          this.playbackRate(0.4);
+
+          var goTime = rand(Popcorn.util.toSeconds(startTime), pop.duration());
+          console.log(goTime);
+          pop.play(goTime);
+          pop.on("timeupdate", function () {
+            if (pop.currentTime() > goTime + 5.5) {
+              if (loop > 5) {
+                console.log('restart');
+                history.go(0);
+              } else {
+                console.log('loop');
+                loop++;
+                pop.play(goTime);
+              }
+            }
+          });
+          var can = $("<canvas/>", {
+            "width": vid.innerWidth(),
+            "height": vid.innerHeight(),
+            "id": "canvas"
+          }).appendTo("#container");
+          vid[0].width = vid.innerWidth();
+          vid[0].height = vid.innerHeight();
+          can[0].width = $('video').innerWidth();
+          can[0].height = $('video').innerHeight();
+          vid.css('height', '99vh');
+          vid.css('width', 'auto');
+          can.css('height', '99vh');
+          can.css('width', vid.width());
+          pop.on("play", function () {
+            saxby();
+            pop.off("play");
+          });
+        }
+
+      });
+
+
+    });
+
+
+    var loadVid = function (vid) {
+      $('source').remove();
+      $('<source/>', {
+        src: "http://unreliable.interrogator.us/media/" + vid.name + ".mp4"
+      }).appendTo('video');
+      startTime = vid.stt;
+      $('video')[0].load();
+    };
+
+    var saxby = function () {
+
+      var videoInput = document.getElementById('video');
+
+      var ctracker = new clm.tracker();
+      ctracker.init(pModel);
+      ctracker.start(videoInput);
+      var canvasInput = document.getElementById('canvas');
+      var cc = canvasInput.getContext('2d');
+
+      function positionLoop() {
+        requestAnimationFrame(positionLoop);
+        var positions = ctracker.getCurrentPosition();
+
+
+        // do something with the positions ...
+        // print the positions
+        var positionString = "?t=" + Popcorn('video').currentTime() + "/" + Popcorn('video').duration() + "<br/>";
+        if (positions) {
+          for (var p = 0; p < 10; p++) {
+            positionString += "[" + positions[p][0].toFixed(2) + "," + positions[p][1].toFixed(2) + "]<br/>";
+          }
+          document.getElementById('overlay').innerHTML = positionString;
+        }
+      }
+      positionLoop();
+      
+      function drawLoop() {
+        requestAnimationFrame(drawLoop);
+        cc.clearRect(0, 0, canvasInput.width, canvasInput.height);
+        ctracker.draw(canvasInput);
+      }
+      drawLoop();
+    };
+    
+    var rand = function (min, max) {
+
+      return Math.random() * (max - min) + min;
+
+
+    }
+
+
+    frame.setup = function () {
+      this.video = document.getElementById('video');
+      this.pop = Popcorn('video');
+      this.c1 = document.getElementById('c1');
+      this.ctx1 = this.c1.getContext('2d');
+      this.c2 = document.getElementById('c2');
+      this.ctx2 = this.c2.getContext('2d');
+      var self = this;
+      self.width = self.video.videoWidth;
+      self.height = self.video.videoHeight;
+      
+
+    }
+
+
+    frame.feinstein = function (time) {
+      var self = this;
+      var num = $('<span/>', {
+        'text': time + " "
+      }).appendTo('#overlay');
+    }
+      frame.boop = function () {
+        loop++;
+        console.log(loop);
+        if (loop > 145){
+         history.go(0); 
+        }
+        var self = this;
+        this.ctx1.drawImage(this.video, 0, 0, this.width, this.height);
+
+        this.pop.pause(this.pop.currentTime() + 7);
+        window.setTimeout(function () {
+          self.ctx2.drawImage(self.video, 0, 0, self.width, self.height);
+
+          self.ctx1.blendOnto(self.ctx2, 'difference');
+          var pixels = self.ctx2.getImageData(0, 0, self.width, self.height);
+          var br = 0;
+          for (var i = 0, n = pixels.data.length; i < n; i += 4) {
+            var red = pixels.data[i];
+            var green = pixels.data[i + 1];
+            var blue = pixels.data[i + 2];
+            br = br + red + green + blue;
+          }
+          var thresh = br / (self.width * self.height);
+          //$('meter').attr('value', thresh).text(thresh);
+          $('#meter').text(thresh);
+          if (thresh > 100) {
+            $('#meter').addClass('hit');
+            frame.feinstein(self.pop.currentTime());
+          } else {
+            $('#meter').removeClass('hit');
+          }
+      frame.boop();
+    }, 750);
+    
+
+};
+  </script>
+</head>
+
+<body>
+  </script>
+  </head>
+
+  <body>
+    <div id="content">
+      <div id="container">
+        <video id="video" crossorigin="anonymous">
+        </video>
+      </div>
+      <div id="overlay"></div>
+  </body>
+  </div>
+
+</html>
+
